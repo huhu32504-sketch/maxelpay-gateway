@@ -21,7 +21,7 @@ else:
     API_SECRET = os.environ.get('API_SECRET', '2H2ZXGtjw1SsR5WEOV26pQoqEcHrGRGi')
     API_URL = 'https://api.maxelpay.com/v1/stg/merchant/order/checkout'
 
-WALLET_ADDRESS = os.environ.get('0xEF08ECD78FEe6e7104cd146F5304cEb55d1862Bb')  # Set in MaxelPay dashboard
+WALLET_ADDRESS = os.environ.get('WALLET_ADDRESS', '0xEF08ECD78FEe6e7104cd146F5304cEb55d1862Bb')  # Set in MaxelPay dashboard
 CURRENCY = 'GBP'
 CRYPTO_CURRENCY = 'ETH'
 
