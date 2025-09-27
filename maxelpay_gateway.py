@@ -1,25 +1,30 @@
 import os
 from flask import Flask, request, redirect, render_template_string
-# ... other imports ...
 import requests
 import json
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 import base64
 import time
-import uuid  # For unique order IDs
+import uuid
 
 app = Flask(__name__)
+
 # Environment-based configuration
 ENV = os.environ.get('ENV', 'stg')  # Default to sandbox if ENV not set
 if ENV == 'prod':
-API_KEY = os.environ.get('API_KEY', 'KbTNVOClfa4ctIIVO3syWiLmmKurls5x ')
-API_SECRET = os.environ.get('API_SECRET', '2H2ZXGtjw1SsR5WEOV26pQoqEcHrGRGi')
-WALLET_ADDRESS = '0xEF08ECD78FEe6e7104cd146F5304cEb55d1862Bb'  # Set in MaxelPay dashboard
-API_URL = 'https://api.maxelpay.com/v1/stg/merchant/order/checkout'
-CURRENCY = 'GBP'
-CRYPTO_CURRENCY = 'ETH'
+    API_KEY = os.environ.get('API_KEY_PROD', 'KbTNVOClfa4ctIIVO3syWiLmmKurls5x')
+    API_SECRET = os.environ.get('API_SECRET_PROD', '2H2ZXGtjw1SsR5WEOV26pQoqEcHrGRGi')
+    API_URL = 'https://api.maxelpay.com/v1/prod/merchant/order/checkout'
+else:
+    API_KEY = os.environ.get('API_KEY', 'KbTNVOClfa4ctIIVO3syWiLmmKurls5x')
+    API_SECRET = os.environ.get('API_SECRET', '2H2ZXGtjw1SsR5WEOV26pQoqEcHrGRGi')
+    API_URL = 'https://api.maxelpay.com/v1/stg/merchant/order/checkout'
 
+WALLET_ADDRESS = os.environ.get('0xEF08ECD78FEe6e7104cd146F5304cEb55d1862Bb', '0xEF08ECD78FEe6e7104cd146F5304cEb55d1862Bb
+0xEF08ECD78FEe6e7104cd146F5304cEb55d1862Bb')  # Set in MaxelPay dashboard
+CURRENCY = 'GBP'
+CRYPTO_CURRENCY = 'ETH
 
 
 # Encryption function (AES CBC with secret as key/IV)
@@ -124,4 +129,5 @@ def webhook():
     return 'OK', 200
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    port = int(os.environ.get('PORT', 5001))  # Render sets PORT
+    app.run(debug=False, host='0.0.0.0', port=port)  # debug=False for prod
