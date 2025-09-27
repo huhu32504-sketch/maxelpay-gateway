@@ -10,7 +10,9 @@ import time
 import uuid  # For unique order IDs
 
 app = Flask(__name__)
-
+# Environment-based configuration
+ENV = os.environ.get('ENV', 'stg')  # Default to sandbox if ENV not set
+if ENV == 'prod':
 API_KEY = os.environ.get('API_KEY', 'KbTNVOClfa4ctIIVO3syWiLmmKurls5x ')
 API_SECRET = os.environ.get('API_SECRET', '2H2ZXGtjw1SsR5WEOV26pQoqEcHrGRGi')
 WALLET_ADDRESS = '0xEF08ECD78FEe6e7104cd146F5304cEb55d1862Bb'  # Set in MaxelPay dashboard
