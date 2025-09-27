@@ -1,4 +1,6 @@
+import os
 from flask import Flask, request, redirect, render_template_string
+# ... other imports ...
 import requests
 import json
 from Crypto.Cipher import AES
@@ -9,13 +11,14 @@ import uuid  # For unique order IDs
 
 app = Flask(__name__)
 
-# Replace with your MaxelPay details
-API_KEY = 'KbTNVOClfa4ctIIVO3syWiLmmKurls5x'
-API_SECRET = '2H2ZXGtjw1SsR5WEOV26pQoqEcHrGRGi'  # Used for encryption
-WALLET_ADDRESS = '0xEF08ECD78FEe6e7104cd146F5304cEb55d1862Bb'  # Set in dashboard, but not in payload
-API_URL = 'https://api.maxelpay.com/v1/prod/merchant/order/checkout'  # Use /prod/ for sandbox
-CURRENCY = 'GBP'  # Fiat currency for customer payment
-CRYPTO_CURRENCY = 'ETH'  # You receive this (set in dashboard)
+API_KEY = os.environ.get('API_KEY',KbTNVOClfa4ctIIVO3syWiLmmKurls5x)
+API_SECRET = os.environ.get('API_SECRET', '2H2ZXGtjw1SsR5WEOV26pQoqEcHrGRGi')
+WALLET_ADDRESS = '0xEF08ECD78FEe6e7104cd146F5304cEb55d1862Bb'  # Set in MaxelPay dashboard
+API_URL = 'https://api.maxelpay.com/v1/stg/merchant/order/checkout'
+CURRENCY = 'GBP'
+CRYPTO_CURRENCY = 'ETH'
+
+
 
 # Encryption function (AES CBC with secret as key/IV)
 def encrypt_payload(secret, payload):
@@ -75,12 +78,12 @@ def process_payment():
         "currency": CURRENCY,
         "timestamp": timestamp,
         "userName": user_name,
-        "siteName": "My Simple Store",  # Customize
+        "siteName": "kspayments",  # Customize
         "userEmail": user_email,
-        "redirectUrl": "http://localhost:5001/success",  # Your success page (or external URL)
-        "websiteUrl": "http://localhost:5001",  # Your site URL
-        "cancelUrl": "http://localhost:5001/cancel",  # Cancel page
-        "webhookUrl": "http://localhost:5001/webhook"  # Optional: For status updates
+        "redirectUrl": "https://maxelpay-gateway.onrender.com/success",  # Your success page (or external URL)
+        "websiteUrl": "https://maxelpay-gateway.onrender.com",  # Your site URL
+        "cancelUrl": "https://maxelpay-gateway.onrender.com/cancel",  # Cancel page
+        "webhookUrl": "https://maxelpay-gateway.onrender.com/webhook"  # Optional: For status updates
     }
 
     # Encrypt payload
