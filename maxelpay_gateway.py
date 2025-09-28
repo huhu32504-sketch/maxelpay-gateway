@@ -13,17 +13,17 @@ app = Flask(__name__)
 # Environment-based configuration
 ENV = os.environ.get('ENV', 'stg')  # Default to sandbox if ENV not set
 if ENV == 'prod':
-    API_KEY = os.environ.get('API_KEY_PROD', 'KbTNVOClfa4ctIIVO3syWiLmmKurls5x') # No fallback to avoid invalid key
-    API_SECRET = os.environ.get('API_SECRET_PROD', '2H2ZXGtjw1SsR5WEOV26pQoqEcHrGRGi')
+    API_KEY = os.environ.get('API_KEY_PROD') # No fallback to avoid invalid key
+    API_SECRET = os.environ.get('API_SECRET_PROD')
     API_URL = 'https://api.maxelpay.com/v1/prod/merchant/order/checkout'
 else:
-    API_KEY = os.environ.get('API_KEY', 'ORJX0GVeb6zxDfsiJ7sZSScJcRCjRwyv') # No fallback to avoid invalid key
-    API_SECRET = os.environ.get('API_SECRET', 'MexwSikfkprjVdtejuIIISL1wkyeZQTw')
+    API_KEY = os.environ.get('API_KEY') # No fallback to avoid invalid key
+    API_SECRET = os.environ.get('API_SECRET')
     API_URL = 'https://api.maxelpay.com/v1/stg/merchant/order/checkout'
 
-# Ensure keys are set
+# Validate keys early
 if not API_KEY or not API_SECRET:
-    raise ValueError("API_KEY or API_SECRET not set in environment variables")
+    raise ValueError(f"API_KEY or API_SECRET not set for ENV={ENV}. Check Render environment variables.")
 
 WALLET_ADDRESS = os.environ.get('WALLET_ADDRESS', '0xEF08ECD78FEe6e7104cd146F5304cEb55d1862Bb')  # Set in MaxelPay dashboard
 CURRENCY = 'GBP'
@@ -84,7 +84,7 @@ def process_payment():
     timestamp = int(time.time())
     payload = {
         "orderID": order_id,
-        "amount": f"{amount:.2f}",  # Format as string with 2 decimals (e.g., "10.00")
+        "amount": f"{amount:.2f}",
         "currency": CURRENCY,
         "timestamp": timestamp,
         "userName": user_name,
@@ -104,25 +104,25 @@ def process_payment():
         'Content-Type': 'application/json',
         'api-key': API_KEY
     }
-    data = {'encrypted_payload': encrypted}  # Assuming this format; check docs if needed
+    data = {'encrypted_payload': encrypted}
     try:
-    response = requests.post(API_URL, headers=headers, json=data)
-    response.raise_for_status()  # Raises error for bad status codes
-    resp_json = response.json()
-    
-    if 'checkout_url' in resp_json:
-        return redirect(resp_json['checkout_url'])
-    else:
-        error_msg = resp_json.get('error', 'Unknown error from MaxelPay')
-        return render_template_string(FORM_HTML, message=error_msg, success=False)
-except requests.exceptions.HTTPError as e:
-    return render_template_string(FORM_HTML, message=f'HTTP Error: {str(e)}', success=False)
-except requests.exceptions.RequestException as e:
-    return render_template_string(FORM_HTML, message=f'Network Error: {str(e)}', success=False)
-except ValueError as e:
-    return render_template_string(FORM_HTML, message=f'JSON Error: {str(e)}', success=False)
-except Exception as e:
-    return render_template_string(FORM_HTML, message=f'Unexpected Error: {str(e)}', success=False)
+        response = requests.post(API_URL, headers=headers, json=data)
+        response.raise_for_status()  # Raises error for bad status codes
+        resp_json = response.json()
+        
+        if 'checkout_url' in resp_json:
+            return redirect(resp_json['checkout_url'])
+        else:
+            error_msg = resp_json.get('error', 'Unknown error from MaxelPay')
+            return render_template_string(FORM_HTML, message=error_msg, success=False)
+    except requests.exceptions.HTTPError as e:
+        return render_template_string(FORM_HTML, message=f'HTTP Error: {str(e)}', success=False)
+    except requests.exceptions.RequestException as e:
+        return render_template_string(FORM_HTML, message=f'Network Error: {str(e)}', success=False)
+    except ValueError as e:
+        return render_template_string(FORM_HTML, message=f'JSON Error: {str(e)}', success=False)
+    except Exception as e:
+        return render_template_string(FORM_HTML, message=f'Unexpected Error: {str(e)}', success=False)
 
 @app.route('/success')
 def success():
