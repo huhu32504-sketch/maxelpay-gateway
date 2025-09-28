@@ -1,6 +1,5 @@
-flask
-requests
-tenacity
-cryptography
-pycryptodome
-gunicorn
+flask==3.0.3
+requests==2.31.0
+tenacity==8.2.3
+cryptography==42.0.8
+gunicorn==22.0.0
