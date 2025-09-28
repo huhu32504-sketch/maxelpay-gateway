@@ -27,10 +27,10 @@ endpoint = "https://api.maxelpay.com/v1/{}/merchant/order/checkout".format(envir
 payload_data = {
    "orderID"     : "113099",
    "amount"      : "100",
-   "currency"    : "GBP",
+   "currency"    : "USD",
    "timestamp"   : "1717666706",
    "userName"    : "ABC",
-   "siteName"    : "kspayments",
+   "siteName"    : "Maxelpay",
    "userEmail"   : "abc@gmail.com",
    "redirectUrl" : "https://example.com/checkout/order-received/113099/?key=order_IRZTHBRCp3pcg",
    "websiteUrl"  : "https://example.com",
