@@ -8,7 +8,7 @@ import time
 import uuid
 import re
 import logging
-from tenacity import retry, stop_after_attempt, wait_fixed
+
 
 app = Flask(__name__)
 
