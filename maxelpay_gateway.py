@@ -5,6 +5,7 @@ import requests
 import uuid
 import time
 import logging
+import re  # Added to fix 'name re is not defined'
 from flask import Flask, request, redirect, render_template_string
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
