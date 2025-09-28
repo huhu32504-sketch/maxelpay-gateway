@@ -7,8 +7,13 @@ import hashlib
 import time
 import uuid
 import re
+import logging
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 app = Flask(__name__)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Simple HTML form (grandma-friendly: big buttons, clear labels)
 FORM_HTML = """
@@ -41,15 +46,11 @@ FORM_HTML = """
 """
 
 # Environment-based configuration
-ENV = os.environ.get('ENV', 'stg')  # Default to staging
-if ENV == 'prod':
-    API_KEY = os.environ.get('API_KEY_PROD')
-    API_SECRET = os.environ.get('API_SECRET_PROD')
-    API_URL = 'https://api.maxelpay.com/v1/prod/merchant/order/checkout'
-else:
-    API_KEY = os.environ.get('API_KEY')
-    API_SECRET = os.environ.get('API_SECRET')
-    API_URL = 'https://api.maxelpay.com/v1/stg/merchant/order/checkout'
+ENV = 'stg'  # Hardcode to staging to avoid prod issues
+API_KEY = os.environ.get('API_KEY')
+API_SECRET = os.environ.get('API_SECRET')
+API_URL = 'https://api.maxelpay.com/v1/stg/merchant/order/checkout'
+PRODUCT_ID = os.environ.get('PRODUCT_ID', 'default_product')  # Set in MaxelPay dashboard
 
 # Optional wallet address
 WALLET_ADDRESS = os.environ.get('WALLET_ADDRESS', '0xEF08ECD78FEe6e7104cd146F5304cEb55d1862Bb')
@@ -58,7 +59,8 @@ CRYPTO_CURRENCY = 'ETH'
 
 # Validate required environment variables
 if not all([API_KEY, API_SECRET]):
-    raise ValueError(f"Missing required environment variables for ENV={ENV}. Check API_KEY and API_SECRET.")
+    error_message = f"Missing required environment variables for ENV={ENV}. Check API_KEY and API_SECRET in Render."
+    logging.error(error_message)
 
 # MaxelPay Signature Function (HMAC SHA256)
 def generate_signature(secret, payload_str):
@@ -75,7 +77,7 @@ def create_payload(user_name, user_email, amount):
     payload_dict = {
         "publicKey": API_KEY,
         "uniqueUserId": user_email,
-        "productId": "default_product",  # Customize or create in MaxelPay dashboard
+        "productId": PRODUCT_ID,  # Use configurable product ID
         "amount": f"{amount:.2f}",
         "currency": CURRENCY,
         "timestamp": timestamp,
@@ -90,9 +92,12 @@ def create_payload(user_name, user_email, amount):
 
 @app.route('/')
 def home():
+    if not all([API_KEY, API_SECRET]):
+        return render_template_string(FORM_HTML, message="Server configuration error: Missing API credentials. Contact support.", success=False)
     return render_template_string(FORM_HTML)
 
 @app.route('/process_payment', methods=['POST'])
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(2))  # Retry 3 times, 2s delay
 def process_payment():
     try:
         user_name = request.form['userName'].strip()
@@ -109,8 +114,14 @@ def process_payment():
 
         # Create payload
         payload_dict = create_payload(user_name, user_email, amount)
-        payload_str = json.dumps(payload_dict, sort_keys=True)  # Sort for consistent signature
+        payload_str = json.dumps(payload_dict, sort_keys=True, separators=(',', ':'))  # Compact JSON
         signature = generate_signature(API_SECRET, payload_str)
+
+        # Debug logs
+        logging.info(f"ENV: {ENV}, API_URL: {API_URL}")
+        logging.info(f"Payload: {payload_str}")
+        logging.info(f"Signature: {signature}")
+        logging.info(f"API_KEY (partial): {API_KEY[:10]}...")
 
         # Add signature to payload
         payload_dict["signature"] = signature
@@ -121,21 +132,32 @@ def process_payment():
         response.raise_for_status()
         resp_json = response.json()
 
+        logging.info(f"MaxelPay response: {resp_json}")
+
         if 'checkout_url' in resp_json:
             return redirect(resp_json['checkout_url'])
         else:
             error_msg = resp_json.get('error', 'Unknown error from MaxelPay')
+            logging.error(f"API error: {error_msg}")
             return render_template_string(FORM_HTML, message=error_msg, success=False)
 
     except KeyError:
+        logging.error("Missing form fields")
         return render_template_string(FORM_HTML, message="Missing required form fields.", success=False)
     except ValueError as e:
+        logging.error(f"Invalid input: {str(e)}")
         return render_template_string(FORM_HTML, message=f"Invalid input: {str(e)}", success=False)
     except requests.exceptions.HTTPError as e:
-        return render_template_string(FORM_HTML, message=f"Payment Gateway Error: {str(e)}", success=False)
+        logging.error(f"HTTP Error: {str(e)}")
+        error_msg = f"Payment Gateway Error: {str(e)}"
+        if "401" in str(e):
+            error_msg += " (Check API credentials or contact MaxelPay support)"
+        return render_template_string(FORM_HTML, message=error_msg, success=False)
     except requests.exceptions.RequestException as e:
+        logging.error(f"Network Error: {str(e)}")
         return render_template_string(FORM_HTML, message=f"Network Error: {str(e)}", success=False)
     except Exception as e:
+        logging.error(f"Unexpected Error: {str(e)}")
         return render_template_string(FORM_HTML, message=f"Unexpected Error: {str(e)}", success=False)
 
 @app.route('/success')
@@ -148,14 +170,12 @@ def cancel():
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    # Optional: Add signature verification for security
     try:
         data = request.json
-        # Add logic to verify webhook signature if provided by MaxelPay
-        print("Webhook received:", data)  # Log for debugging
+        logging.info(f"Webhook received: {data}")
         return 'OK', 200
     except Exception as e:
-        print(f"Webhook error: {str(e)}")
+        logging.error(f"Webhook error: {str(e)}")
         return 'Error', 400
 
 if __name__ == '__main__':
