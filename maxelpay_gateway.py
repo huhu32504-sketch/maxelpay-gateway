@@ -23,8 +23,8 @@ else:
     API_URL = 'https://api.maxelpay.com/v1/stg/merchant/order/checkout'
 
 # Validate keys early
-if not API_KEY or not API_SECRET:
-    raise ValueError(f"API_KEY or API_SECRET not set for ENV={ENV}. Check Render environment variables.")
+if not all([API_KEY, API_SECRET, WALLET_ADDRESS]):
+    raise ValueError(f"Missing required environment variables for ENV={ENV}. Check API_KEY, API_SECRET, and WALLET_ADDRESS.")
 
 WALLET_ADDRESS = os.environ.get('WALLET_ADDRESS', '0xEF08ECD78FEe6e7104cd146F5304cEb55d1862Bb')  # Optional
 CURRENCY = 'GBP'
@@ -42,6 +42,39 @@ def process_payment():
     user_email = request.form['userEmail']
     amount = float(request.form['amount'])
 
+     Simple HTML form (grandma-friendly: big buttons, clear labels)
+FORM_HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pay with Card - MaxelPay Gateway</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f4f4f4; }
+        input { padding: 15px; margin: 10px; width: 250px; font-size: 16px; border: 1px solid #ccc; border-radius: 5px; }
+        button { padding: 15px 30px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 18px; }
+        button:hover { background: #0056b3; }
+        h1 { color: #333; }
+    </style>
+</head>
+<body>
+    <h1>Pay and Get Crypto Magic!</h1>
+    <p>Enter details below. We'll convert your card payment to crypto automatically.</p>
+    <form method="post" action="/process_payment">
+        <input type="text" name="userName" placeholder="Your Name" required><br>
+        <input type="email" name="userEmail" placeholder="Your Email" required><br>
+        <input type="number" name="amount" placeholder="Amount in GBP (e.g., 10.00)" step="0.01" min="1" required><br>
+        <button type="submit">Pay with Card Now</button>
+    </form>
+    {% if message %}
+        <p style="color: {{ 'green' if success else 'red' }}; font-size: 18px;">{{ message }}</p>
+    {% endif %}
+</body>
+</html>
+"""
+
+@app.route('/')
+def home():
+    return render_template_string(FORM_HTML)
     # Build payload (match MaxelPay format)
     order_id = str(uuid.uuid4())[:8]
     timestamp = int(time.time())
