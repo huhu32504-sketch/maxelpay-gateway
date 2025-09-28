@@ -13,13 +13,17 @@ app = Flask(__name__)
 # Environment-based configuration
 ENV = os.environ.get('ENV', 'stg')  # Default to sandbox if ENV not set
 if ENV == 'prod':
-    API_KEY = os.environ.get('API_KEY_PROD', 'KbTNVOClfa4ctIIVO3syWiLmmKurls5x')
+    API_KEY = os.environ.get('API_KEY_PROD', 'KbTNVOClfa4ctIIVO3syWiLmmKurls5x') # No fallback to avoid invalid key
     API_SECRET = os.environ.get('API_SECRET_PROD', '2H2ZXGtjw1SsR5WEOV26pQoqEcHrGRGi')
     API_URL = 'https://api.maxelpay.com/v1/prod/merchant/order/checkout'
 else:
-    API_KEY = os.environ.get('API_KEY', 'ORJX0GVeb6zxDfsiJ7sZSScJcRCjRwyv')
+    API_KEY = os.environ.get('API_KEY', 'ORJX0GVeb6zxDfsiJ7sZSScJcRCjRwyv') # No fallback to avoid invalid key
     API_SECRET = os.environ.get('API_SECRET', 'MexwSikfkprjVdtejuIIISL1wkyeZQTw')
     API_URL = 'https://api.maxelpay.com/v1/stg/merchant/order/checkout'
+
+# Ensure keys are set
+if not API_KEY or not API_SECRET:
+    raise ValueError("API_KEY or API_SECRET not set in environment variables")
 
 WALLET_ADDRESS = os.environ.get('WALLET_ADDRESS', '0xEF08ECD78FEe6e7104cd146F5304cEb55d1862Bb')  # Set in MaxelPay dashboard
 CURRENCY = 'GBP'
@@ -73,23 +77,23 @@ def home():
 def process_payment():
     user_name = request.form['userName']
     user_email = request.form['userEmail']
-    amount = request.form['amount']
+    amount = float(request.form['amount'])  # Convert to float
 
     # Build payload
-    order_id = str(uuid.uuid4())[:8]  # Simple unique ID
+    order_id = str(uuid.uuid4())[:8]
     timestamp = int(time.time())
     payload = {
         "orderID": order_id,
-        "amount": amount,
+        "amount": f"{amount:.2f}",  # Format as string with 2 decimals (e.g., "10.00")
         "currency": CURRENCY,
         "timestamp": timestamp,
         "userName": user_name,
-        "siteName": "kspayments",  # Customize
+        "siteName": "kspayments",
         "userEmail": user_email,
-        "redirectUrl": "https://maxelpay-gateway.onrender.com/success",  # Your success page (or external URL)
-        "websiteUrl": "https://maxelpay-gateway.onrender.com",  # Your site URL
-        "cancelUrl": "https://maxelpay-gateway.onrender.com/cancel",  # Cancel page
-        "webhookUrl": "https://maxelpay-gateway.onrender.com/webhook"  # Optional: For status updates
+        "redirectUrl": "https://maxelpay-gateway.onrender.com/success",
+        "websiteUrl": "https://maxelpay-gateway.onrender.com",
+        "cancelUrl": "https://maxelpay-gateway.onrender.com/cancel",
+        "webhookUrl": "https://maxelpay-gateway.onrender.com/webhook"
     }
 
     # Encrypt payload
@@ -102,17 +106,23 @@ def process_payment():
     }
     data = {'encrypted_payload': encrypted}  # Assuming this format; check docs if needed
     try:
-        response = requests.post(API_URL, headers=headers, json=data)
-        resp_json = response.json()
-        
-        if response.status_code == 200 and 'checkout_url' in resp_json:  # Assume response has this
-            # Redirect to hosted checkout
-            return redirect(resp_json['checkout_url'])
-        else:
-            error_msg = resp_json.get('error', 'Unknown error')
-            return render_template_string(FORM_HTML, message=error_msg, success=False)
-    except Exception as e:
-        return render_template_string(FORM_HTML, message=f'Error: {str(e)}', success=False)
+    response = requests.post(API_URL, headers=headers, json=data)
+    response.raise_for_status()  # Raises error for bad status codes
+    resp_json = response.json()
+    
+    if 'checkout_url' in resp_json:
+        return redirect(resp_json['checkout_url'])
+    else:
+        error_msg = resp_json.get('error', 'Unknown error from MaxelPay')
+        return render_template_string(FORM_HTML, message=error_msg, success=False)
+except requests.exceptions.HTTPError as e:
+    return render_template_string(FORM_HTML, message=f'HTTP Error: {str(e)}', success=False)
+except requests.exceptions.RequestException as e:
+    return render_template_string(FORM_HTML, message=f'Network Error: {str(e)}', success=False)
+except ValueError as e:
+    return render_template_string(FORM_HTML, message=f'JSON Error: {str(e)}', success=False)
+except Exception as e:
+    return render_template_string(FORM_HTML, message=f'Unexpected Error: {str(e)}', success=False)
 
 @app.route('/success')
 def success():
